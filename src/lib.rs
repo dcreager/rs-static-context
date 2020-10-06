@@ -12,3 +12,53 @@
 // express or implied.  See the License for the specific language governing permissions and
 // limitations under the License.
 // ------------------------------------------------------------------------------------------------
+
+use std::marker::PhantomData;
+
+pub trait Context: Sized {
+    fn add<Unit>(self, unit: Unit) -> NestedContext<Unit, Self>;
+}
+
+impl<T> Context for T {
+    fn add<Unit>(self, unit: Unit) -> NestedContext<Unit, Self> {
+        NestedContext {
+            head: unit,
+            tail: self,
+        }
+    }
+}
+
+pub struct NestedContext<Head, Tail> {
+    head: Head,
+    tail: Tail,
+}
+
+impl NestedContext<(), ()> {
+    pub fn root() -> () {
+        ()
+    }
+}
+
+pub struct Next<T>(PhantomData<T>);
+
+pub trait Has<Unit, Proof> {
+    fn get_unit(&self) -> &Unit;
+}
+
+impl<Unit, Tail> Has<Unit, ()> for NestedContext<Unit, Tail> {
+    fn get_unit(&self) -> &Unit {
+        &self.head
+    }
+}
+
+impl<Unit, Head, Tail, TailProof> Has<Unit, Next<TailProof>> for NestedContext<Head, Tail>
+where
+    Tail: Has<Unit, TailProof>,
+{
+    fn get_unit(&self) -> &Unit {
+        self.tail.get_unit()
+    }
+}
+
+#[cfg(test)]
+mod tests;
