@@ -43,11 +43,16 @@ pub struct Next<T>(PhantomData<T>);
 
 pub trait Has<Unit, Proof> {
     fn get_unit(&self) -> &Unit;
+    fn get_unit_mut(&mut self) -> &mut Unit;
 }
 
 impl<Unit, Tail> Has<Unit, ()> for NestedContext<Unit, Tail> {
     fn get_unit(&self) -> &Unit {
         &self.head
+    }
+
+    fn get_unit_mut(&mut self) -> &mut Unit {
+        &mut self.head
     }
 }
 
@@ -57,6 +62,10 @@ where
 {
     fn get_unit(&self) -> &Unit {
         self.tail.get_unit()
+    }
+
+    fn get_unit_mut(&mut self) -> &mut Unit {
+        self.tail.get_unit_mut()
     }
 }
 

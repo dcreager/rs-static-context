@@ -35,6 +35,7 @@ impl FirstName {
 
 trait HasFirstName<Proof> {
     fn first_name(&self) -> &String;
+    fn set_first_name<S: ToString>(&mut self, name: S);
 }
 
 impl<T, Proof> HasFirstName<Proof> for T
@@ -44,13 +45,19 @@ where
     fn first_name(&self) -> &String {
         &self.get_unit().name
     }
+
+    fn set_first_name<S: ToString>(&mut self, name: S) {
+        self.get_unit_mut().name = name.to_string();
+    }
 }
 
 #[test]
 fn can_add_first_name() {
     let ctx = NestedContext::root();
-    let ctx = FirstName::new(ctx, "Rusty");
+    let mut ctx = FirstName::new(ctx, "Rusty");
     assert_eq!(ctx.first_name(), "Rusty");
+    ctx.set_first_name("Dusty");
+    assert_eq!(ctx.first_name(), "Dusty");
 }
 
 struct LastName {
