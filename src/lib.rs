@@ -29,8 +29,8 @@ impl<T> Context for T {
 }
 
 pub struct NestedContext<Head, Tail> {
-    head: Head,
-    tail: Tail,
+    pub head: Head,
+    pub tail: Tail,
 }
 
 impl NestedContext<(), ()> {
