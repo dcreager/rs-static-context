@@ -14,17 +14,18 @@
 // ------------------------------------------------------------------------------------------------
 
 use crate::Context;
+use crate::ContextParent;
+use crate::ContextStack;
 use crate::Has;
-use crate::NestedContext;
 
 struct FirstName {
     name: String,
 }
 
 impl FirstName {
-    fn new<C, S>(ctx: C, name: S) -> NestedContext<Self, C>
+    fn new<C, S>(ctx: C, name: S) -> ContextStack<Self, C>
     where
-        C: Context,
+        C: ContextParent,
         S: ToString,
     {
         ctx.add(FirstName {
@@ -53,8 +54,9 @@ where
 
 #[test]
 fn can_add_first_name() {
-    let ctx = NestedContext::root();
-    let mut ctx = FirstName::new(ctx, "Rusty");
+    let ctx = Context::root();
+    let ctx = FirstName::new(ctx, "Rusty");
+    let mut ctx = ctx.seal();
     assert_eq!(ctx.first_name(), "Rusty");
     ctx.set_first_name("Dusty");
     assert_eq!(ctx.first_name(), "Dusty");
@@ -65,9 +67,9 @@ struct LastName {
 }
 
 impl LastName {
-    fn new<C, S>(ctx: C, name: S) -> NestedContext<Self, C>
+    fn new<C, S>(ctx: C, name: S) -> ContextStack<Self, C>
     where
-        C: Context,
+        C: ContextParent,
         S: ToString,
     {
         ctx.add(LastName {
@@ -91,16 +93,18 @@ where
 
 #[test]
 fn can_add_last_name() {
-    let ctx = NestedContext::root();
+    let ctx = Context::root();
     let ctx = LastName::new(ctx, "McRustface");
+    let ctx = ctx.seal();
     assert_eq!(ctx.last_name(), "McRustface");
 }
 
 #[test]
 fn can_add_both_names() {
-    let ctx = NestedContext::root();
+    let ctx = Context::root();
     let ctx = FirstName::new(ctx, "Rusty");
     let ctx = LastName::new(ctx, "McRustface");
+    let ctx = ctx.seal();
     assert_eq!(ctx.first_name(), "Rusty");
     assert_eq!(ctx.last_name(), "McRustface");
 }
@@ -121,9 +125,10 @@ where
 
 #[test]
 fn can_get_full_name() {
-    let ctx = NestedContext::root();
+    let ctx = Context::root();
     let ctx = FirstName::new(ctx, "Rusty");
     let ctx = LastName::new(ctx, "McRustface");
+    let ctx = ctx.seal();
     assert_eq!(ctx.full_name(), "Rusty McRustface");
 }
 
@@ -147,7 +152,16 @@ impl Registry for LastName {
     }
 }
 
-impl<Head, Tail> Registry for NestedContext<Head, Tail>
+impl<Stack> Registry for Context<Stack>
+where
+    Stack: Registry,
+{
+    fn register(&self, units: &mut Vec<String>) {
+        self.stack().register(units);
+    }
+}
+
+impl<Head, Tail> Registry for ContextStack<Head, Tail>
 where
     Head: Registry,
     Tail: Registry,
@@ -160,8 +174,9 @@ where
 
 #[test]
 fn can_register_first_name() {
-    let ctx = NestedContext::root();
+    let ctx = Context::root();
     let ctx = FirstName::new(ctx, "Rusty");
+    let ctx = ctx.seal();
     let mut registry = Vec::new();
     ctx.register(&mut registry);
     assert_eq!(registry, vec!["FirstName"]);
@@ -169,8 +184,9 @@ fn can_register_first_name() {
 
 #[test]
 fn can_register_last_name() {
-    let ctx = NestedContext::root();
+    let ctx = Context::root();
     let ctx = LastName::new(ctx, "McRustface");
+    let ctx = ctx.seal();
     let mut registry = Vec::new();
     ctx.register(&mut registry);
     assert_eq!(registry, vec!["LastName"]);
@@ -178,9 +194,10 @@ fn can_register_last_name() {
 
 #[test]
 fn can_register_both_names() {
-    let ctx = NestedContext::root();
+    let ctx = Context::root();
     let ctx = FirstName::new(ctx, "Rusty");
     let ctx = LastName::new(ctx, "McRustface");
+    let ctx = ctx.seal();
     let mut registry = Vec::new();
     ctx.register(&mut registry);
     registry.sort();

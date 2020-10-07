@@ -15,28 +15,54 @@
 
 use std::marker::PhantomData;
 
-pub trait Context: Sized {
-    fn add<Unit>(self, unit: Unit) -> NestedContext<Unit, Self>;
-}
+pub struct Context<Stack>(Stack);
 
-impl<T> Context for T {
-    fn add<Unit>(self, unit: Unit) -> NestedContext<Unit, Self> {
-        NestedContext {
-            head: unit,
-            tail: self,
-        }
-    }
-}
-
-pub struct NestedContext<Head, Tail> {
-    pub head: Head,
-    pub tail: Tail,
-}
-
-impl NestedContext<(), ()> {
+impl Context<()> {
     pub fn root() -> () {
         ()
     }
+}
+
+impl<Stack> Context<Stack> {
+    pub fn stack(&self) -> &Stack {
+        &self.0
+    }
+}
+
+pub trait ContextParent: Sized {
+    fn add<Next>(self, next: Next) -> ContextStack<Next, Self>;
+    fn seal(self) -> Context<Self>;
+}
+
+impl ContextParent for () {
+    fn add<Next>(self, next: Next) -> ContextStack<Next, Self> {
+        ContextStack {
+            head: next,
+            tail: self,
+        }
+    }
+
+    fn seal(self) -> Context<Self> {
+        Context(self)
+    }
+}
+
+impl<H, T> ContextParent for ContextStack<H, T> {
+    fn add<Next>(self, next: Next) -> ContextStack<Next, Self> {
+        ContextStack {
+            head: next,
+            tail: self,
+        }
+    }
+
+    fn seal(self) -> Context<Self> {
+        Context(self)
+    }
+}
+
+pub struct ContextStack<Head, Tail> {
+    pub head: Head,
+    pub tail: Tail,
 }
 
 pub struct Next<T>(PhantomData<T>);
@@ -46,7 +72,20 @@ pub trait Has<Unit, Proof> {
     fn get_unit_mut(&mut self) -> &mut Unit;
 }
 
-impl<Unit, Tail> Has<Unit, ()> for NestedContext<Unit, Tail> {
+impl<Stack, Unit, Proof> Has<Unit, Proof> for Context<Stack>
+where
+    Stack: Has<Unit, Proof>,
+{
+    fn get_unit(&self) -> &Unit {
+        self.0.get_unit()
+    }
+
+    fn get_unit_mut(&mut self) -> &mut Unit {
+        self.0.get_unit_mut()
+    }
+}
+
+impl<Unit, Tail> Has<Unit, ()> for ContextStack<Unit, Tail> {
     fn get_unit(&self) -> &Unit {
         &self.head
     }
@@ -56,7 +95,7 @@ impl<Unit, Tail> Has<Unit, ()> for NestedContext<Unit, Tail> {
     }
 }
 
-impl<Unit, Head, Tail, TailProof> Has<Unit, Next<TailProof>> for NestedContext<Head, Tail>
+impl<Unit, Head, Tail, TailProof> Has<Unit, Next<TailProof>> for ContextStack<Head, Tail>
 where
     Tail: Has<Unit, TailProof>,
 {
